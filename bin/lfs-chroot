@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+IMG=/home/lfs-build/lfs.img
+LFS=/mnt/lfs
+
+if [[ $EUID -ne 0 ]]; then
+  exec sudo "$(readlink -f "$0")" "$@"
+fi
+
+[[ -f $IMG ]] || { echo "нет образа: $IMG" >&2; exit 1; }
+
+LOOP=$(losetup -j "$IMG" -O NAME -n)
+LOOP=${LOOP%%$'\n'*}
+own_loop=0
+own_mounts=()
+
+cleanup() {
+  local status=$? target
+  trap - EXIT
+  if ((${#own_mounts[@]})); then
+    if ! others_inside; then
+      sync
+      for ((i=${#own_mounts[@]}-1; i>=0; i--)); do
+        target=${own_mounts[i]}
+        if ! umount "$target"; then
+          echo "не удалось размонтировать $target; проверь открытые процессы" >&2
+          status=1
+          break
+        fi
+      done
+    else
+      echo "в chroot ещё есть процессы; монтирования оставлены" >&2
+      status=1
+    fi
+  fi
+  if ((own_loop)) && ! mountpoint -q "$LFS"; then
+    losetup -d "$LOOP" || status=1
+  fi
+  exit "$status"
+}
+
+others_inside() {
+  local p root
+  for p in /proc/[0-9]*; do
+    root=$(readlink "$p/root" 2>/dev/null) || continue
+    [[ $root == "$LFS" ]] && return 0
+  done
+  return 1
+}
+
+trap cleanup EXIT
+
+if [[ -z $LOOP ]]; then
+  LOOP=$(losetup -fP --show "$IMG")
+  own_loop=1
+  echo "подключён $IMG -> $LOOP"
+fi
+udevadm settle
+
+mkdir -p "$LFS"
+
+mount_once() {
+  local target=$1; shift
+  if ! mountpoint -q "$target"; then
+    mount "$@" "$target"
+    own_mounts+=("$target")
+  fi
+}
+
+if mountpoint -q "$LFS" && [[ $(findmnt -n -M "$LFS" -o SOURCE) != "${LOOP}p2" ]]; then
+  echo "$LFS уже занят другим разделом; ничего не меняю" >&2
+  exit 1
+fi
+mount_once "$LFS"         -t ext4 "${LOOP}p2"
+mount_once "$LFS/dev"     --bind /dev
+mount_once "$LFS/dev/pts" -t devpts devpts -o gid=5,mode=0620
+mount_once "$LFS/proc"    -t proc proc
+mount_once "$LFS/sys"     -t sysfs sysfs
+mount_once "$LFS/run"     -t tmpfs tmpfs
+mount_once "$LFS/dev/shm" -t tmpfs -o nosuid,nodev tmpfs
+
+chroot "$LFS" /usr/bin/env -i \
+  HOME=/root \
+  TERM="${TERM:-linux}" \
+  PS1='(lfs chroot) \u:\w\$ ' \
+  PATH=/usr/bin:/usr/sbin \
+  MAKEFLAGS="-j$(nproc)" \
+  TESTSUITEFLAGS="-j$(nproc)" \
+  /bin/bash --login

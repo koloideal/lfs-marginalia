@@ -1,0 +1,73 @@
+--- Documentation/fb/fbcon.rst	2026-10-25 22:45:47.512997267 +0300
++++ Documentation/fb/fbcon.rst	2026-10-25 22:46:06.851309791 +0300
+@@ -166,11 +166,11 @@
+ 
+ 7. fbcon=logo-pos:<location>
+ 
+-	The only possible 'location' is 'center' (without quotes), and when
+-	given, the bootup logo is moved from the default top-left corner
+-	location to the center of the framebuffer. If more than one logo is
+-	displayed due to multiple CPUs, the collected line of logos is moved
+-	as a whole.
++	Possible 'location' values are 'center' and 'right' (without
++	quotes). 'center' moves the bootup logo from the default top-left
++	corner location to the center of the framebuffer, 'right' moves it
++	to the top-right corner. If more than one logo is displayed due to
++	multiple CPUs, the collected line of logos is moved as a whole.
+ 
+ 8. fbcon=logo-count:<n>
+ 
+--- drivers/video/fbdev/core/fb_internal.h	2026-10-25 22:45:47.515986728 +0300
++++ drivers/video/fbdev/core/fb_internal.h	2026-10-25 22:46:06.848748329 +0300
+@@ -23,6 +23,7 @@
+ /* fb_logo.c */
+ #if defined(CONFIG_LOGO)
+ extern bool fb_center_logo;
++extern bool fb_right_logo;
+ extern int fb_logo_count;
+ int fb_prepare_logo(struct fb_info *fb_info, int rotate);
+ int fb_show_logo(struct fb_info *fb_info, int rotate);
+--- drivers/video/fbdev/core/fb_logo.c	2026-10-25 22:45:47.518400478 +0300
++++ drivers/video/fbdev/core/fb_logo.c	2026-10-25 22:46:06.849464631 +0300
+@@ -6,6 +6,7 @@
+ #include "fb_internal.h"
+ 
+ bool fb_center_logo __read_mostly;
++bool fb_right_logo __read_mostly;
+ int fb_logo_count __read_mostly = -1;
+ 
+ static inline unsigned int safe_shift(unsigned int d, int n)
+@@ -335,6 +336,16 @@
+ 			--n;
+ 		image.dx = (xres - (n * (logo->width + 8) - 8)) / 2;
+ 		image.dy = y ?: (yres - logo->height) / 2;
++	} else if (fb_right_logo) {
++		int xres = info->var.xres;
++
++		if (rotate == FB_ROTATE_CW || rotate == FB_ROTATE_CCW)
++			xres = info->var.yres;
++
++		while (n && (n * (logo->width + 8) - 8 > xres))
++			--n;
++		image.dx = n ? xres - (n * (logo->width + 8) - 8) : 0;
++		image.dy = y;
+ 	} else {
+ 		image.dx = 0;
+ 		image.dy = y;
+--- drivers/video/fbdev/core/fbcon.c	2026-10-25 22:45:47.521924162 +0300
++++ drivers/video/fbdev/core/fbcon.c	2026-10-25 22:46:06.850959044 +0300
+@@ -559,8 +559,13 @@
+ #ifdef CONFIG_LOGO
+ 		if (!strncmp(options, "logo-pos:", 9)) {
+ 			options += 9;
+-			if (!strcmp(options, "center"))
++			if (!strcmp(options, "center")) {
+ 				fb_center_logo = true;
++				fb_right_logo = false;
++			} else if (!strcmp(options, "right")) {
++				fb_center_logo = false;
++				fb_right_logo = true;
++			}
+ 			continue;
+ 		}
+ 
