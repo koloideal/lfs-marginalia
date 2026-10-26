@@ -24,7 +24,7 @@ cleanup() {
       for ((i=${#own_mounts[@]}-1; i>=0; i--)); do
         target=${own_mounts[i]}
         if ! umount "$target"; then
-          echo "не удалось размонтировать $target; проверь открытые процессы" >&2
+          echo "не удалось размонтировать $target; проверьте процессы в chroot" >&2
           status=1
           break
         fi
@@ -69,7 +69,7 @@ mount_once() {
 }
 
 if mountpoint -q "$LFS" && [[ $(findmnt -n -M "$LFS" -o SOURCE) != "${LOOP}p2" ]]; then
-  echo "$LFS уже занят другим разделом; ничего не меняю" >&2
+  echo "$LFS уже занят другим разделом; изменений не вносится" >&2
   exit 1
 fi
 mount_once "$LFS"         -t ext4 "${LOOP}p2"
