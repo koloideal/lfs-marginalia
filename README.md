@@ -1,7 +1,9 @@
-# my-lfs — модифицированная сборка Linux From Scratch
+# lfs-marginalia — записи на полях Linux From Scratch
 
-Набор патчей, скриптов и конфигов для сборки [LFS](https://www.linuxfromscratch.org/),
-оформленный так, чтобы любой, кто идёт по книге, мог взять нужное себе:
+Сборник модификаций, патчей и машинных профилей для книг семейства
+[*LFS](https://www.linuxfromscratch.org/) — записи на полях книги:
+то, чего в ней нет, но что хочется иметь в собранной системе.
+Оформлено так, чтобы любой, кто идёт по книге, мог взять нужное себе:
 сразу видно, на каком этапе применяется модификация, где она выполняется
 и подходит ли под конкретную систему.
 
@@ -10,7 +12,8 @@
 **Linux From Scratch** — не дистрибутив, а книга-инструкция: полноценная
 Linux-система собирается вручную из исходников, от кросс-компилятора и glibc
 до ядра и загрузчика. На выходе — система без единого чужого бинарника
-и полное понимание того, как она устроена изнутри.
+и полное понимание того, как она устроена изнутри. Поверх базовой системы
+продолжается **BLFS** (Beyond LFS): Xorg, демоны, DE и всё остальное.
 
 Процесс по главам книги:
 
@@ -29,8 +32,8 @@ Linux-система собирается вручную из исходнико
 - **Книга LFS** (stable, systemd и sysvinit редакции): https://www.linuxfromscratch.org/lfs/read.html
 - Онлайн-версия stable-systemd: https://www.linuxfromscratch.org/lfs/view/stable-systemd/
 - Скачать книгу и пакеты: https://www.linuxfromscratch.org/lfs/downloads.html
-- **BLFS — Beyond LFS**: https://www.linuxfromscratch.org/blfs/ — продолжение: Xorg, демоны, DE, браузеры и всё остальное поверх базовой системы
-- **LFS Hints**: https://www.linuxfromscratch.org/hints/ — коллекция заметок о модификациях и альтернативных подходах; этот репозиторий по сути тот же жанр
+- **BLFS — Beyond LFS**: https://www.linuxfromscratch.org/blfs/
+- **LFS Hints**: https://www.linuxfromscratch.org/hints/ — коллекция заметок о модификациях; этот репозиторий по сути тот же жанр
 - **ALFS**: https://www.linuxfromscratch.org/alfs/ — автоматизированная сборка LFS
 - Wiki сообщества: https://wiki.linuxfromscratch.org/
 
@@ -39,6 +42,8 @@ Linux-система собирается вручную из исходнико
 Сборка LFS **13.1 (systemd-редакция)** выполнялась на хосте Arch Linux —
 внутри raw-образа диска, под ThinkPad X200s (Core 2 Duo/Penryn, i915, BIOS).
 Проверка образа — в QEMU, заливка на целевую машину — через `zstd | ssh | dd`.
+Слой BLFS заложен в структуру (`mods/blfs/`, `profiles/*/blfs/`) и наполняется
+по мере сборки пакетов поверх базовой системы.
 
 Точные проверенные версии зафиксированы в `versions.env`. При других версиях
 книги или ядра модификация может всё равно подойти: см. карточку мода
@@ -60,11 +65,13 @@ Linux-система собирается вручную из исходнико
 
 ## Сводная таблица модов
 
-| Мод | Этап (глава книги) | Где применять | Требования | Риск |
-|---|---|---|---|---|
-| [lfs-chroot](mods/07-chroot/lfs-chroot/) | 7.4 и далее при каждом входе | host | сборка в raw-образе через loop; bash, util-linux | низкий |
-| [fbcon-logo-right](mods/10-kernel/fbcon-logo-right/) | 10.4, сборка ядра | chroot | `CONFIG_LOGO=y`, fbdev-консоль | низкий |
-| [custom-boot-logo](mods/10-kernel/custom-boot-logo/) | 10.4, сборка ядра | chroot | `CONFIG_LOGO_LINUX_CLUT224=y`; python3 для генерации | низкий |
+<!-- Сгенерировано tools/gen-mod-table.py из mod.yaml — не править вручную -->
+
+| Мод | Книга | Этап | Где | Требования | Риск |
+|---|---|---|---|---|---|
+| [lfs-chroot](mods/lfs/07-chroot/lfs-chroot/) | lfs | 7.4 и далее при каждом входе | host | сборка в raw-образе через loop; bash, util-linux, udevadm, sudo | низкий |
+| [custom-boot-logo](mods/lfs/10-kernel/custom-boot-logo/) | lfs | 10.4 — сборка ядра | chroot | CONFIG_LOGO=y, CONFIG_LOGO_LINUX_CLUT224=y; python3 — только для генерации | низкий |
+| [fbcon-logo-right](mods/lfs/10-kernel/fbcon-logo-right/) | lfs | 10.4 — сборка ядра | chroot | CONFIG_LOGO=y, CONFIG_FRAMEBUFFER_CONSOLE=y, один CONFIG_LOGO_*=y | низкий |
 
 ## Как пользоваться модом
 
@@ -79,20 +86,35 @@ Linux-система собирается вручную из исходнико
 ## Структура
 
 ```
-├── versions.env            # версии, на которых всё проверено
-├── AGENTS.md               # правила для агентов: как добавлять моды и профили
-├── mods/                   # портируемые модификации, сгруппированы по главам книги
-│   ├── _template/          # шаблон для нового мода
-│   ├── 07-chroot/lfs-chroot/
-│   ├── 10-kernel/fbcon-logo-right/
-│   └── 10-kernel/custom-boot-logo/
-└── profiles/
-    └── thinkpad-x200s/     # конфиги конкретной машины: fstab, grub.cfg, фон GRUB
+├── versions.env                # версии, на которых всё проверено (по книгам)
+├── AGENTS.md                   # правила для агентов и контрибьюторов
+├── CONTRIBUTING.md             # краткая инструкция для контрибьюторов
+├── tools/gen-mod-table.py      # генератор сводной таблицы из mod.yaml
+├── mods/
+│   ├── _template/              # шаблон нового мода (README + mod.yaml)
+│   ├── lfs/                    # моды базовой системы, по главам книги LFS
+│   │   ├── 07-chroot/lfs-chroot/
+│   │   └── 10-kernel/{fbcon-logo-right, custom-boot-logo}/
+│   └── blfs/                   # моды пакетов поверх базовой системы
+└── profiles/<имя-машины>/
+    ├── lfs/                    # конфиги базовой системы
+    └── blfs/                   # конфиги этапа BLFS
 ```
 
-## Статус
+## Статус и roadmap
 
 Рабочая сборка LFS 13.1 под X200s завершена, базовые моды оформлены.
 
-TODO: скрипты создания и разметки `lfs.img`, kernel `.config`
-(diff от defconfig), порядок BLFS-пакетов, профиль QEMU для проверки.
+TODO:
+
+- скрипты создания и разметки `lfs.img` (loop → MBR → swap+ext4)
+- kernel `.config` профиля (diff от defconfig)
+- порядок BLFS-пакетов референсной сборки и первые BLFS-моды
+- профиль QEMU для проверки образа
+- CI: shellcheck по скриптам, `--check` таблицы модов
+
+## Контрибьютинг и лицензия
+
+Правила и процесс — в `CONTRIBUTING.md`, полный свод — в `AGENTS.md`.
+Лицензия — GPL-2.0 (см. `LICENSE`); патчи на ядро производны от
+GPL-кода апстрима и покрыты ею автоматически.

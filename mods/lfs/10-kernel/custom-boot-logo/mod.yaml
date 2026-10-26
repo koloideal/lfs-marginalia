@@ -1,0 +1,9 @@
+name: custom-boot-logo
+summary: свой логотип ядра вместо пингвина
+book: lfs
+stage: "10.4 — сборка ядра"
+where: chroot
+requires: "CONFIG_LOGO=y, CONFIG_LOGO_LINUX_CLUT224=y; python3 — только для генерации"
+risk: low
+tested:
+  - "LFS 13.1 systemd, ядро 7.2.10, Intel i915"

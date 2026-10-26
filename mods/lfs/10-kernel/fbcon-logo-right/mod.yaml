@@ -1,0 +1,9 @@
+name: fbcon-logo-right
+summary: boot-логотип ядра в правом верхнем углу
+book: lfs
+stage: "10.4 — сборка ядра"
+where: chroot
+requires: "CONFIG_LOGO=y, CONFIG_FRAMEBUFFER_CONSOLE=y, один CONFIG_LOGO_*=y"
+risk: low
+tested:
+  - "LFS 13.1 systemd, ядро 7.2.10, Intel i915 (ThinkPad X200s)"

@@ -1,0 +1,9 @@
+name: lfs-chroot
+summary: вход в chroot LFS-системы одной командой
+book: lfs
+stage: "7.4 и далее при каждом входе"
+where: host
+requires: "сборка в raw-образе через loop; bash, util-linux, udevadm, sudo"
+risk: low
+tested:
+  - "хост Arch Linux; независимо от версии LFS — обёртка над mount/chroot"
