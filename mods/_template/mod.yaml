@@ -3,9 +3,9 @@
 # не дублировать сюда текст README.
 name: имя-мода                  # = имя директории
 summary: что делает одной строкой, для сводной таблицы
-book: lfs                       # lfs | blfs | alfs | hlfs | clfs
+book: lfs                       # lfs | blfs
 stage: "глава X.Y — в какой момент применять"
-where: chroot                   # host | chroot | target
+where: chroot                   # host | chroot
 requires: "ключевые условия одной строкой"
 risk: low                       # low | medium | high
 tested:
